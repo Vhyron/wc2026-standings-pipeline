@@ -4,7 +4,7 @@ import sqlite3
 import sys
 
 URL = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json"
-DB_FILE = "worldcup.db"
+DB_FILE = "worldcup-2026.db"
 
 
 # --- EXTRACT ---
