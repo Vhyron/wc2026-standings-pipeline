@@ -222,21 +222,44 @@ def serve(standings, scorers):
 
 # --- DISPLAY ---
  
+WIDTH = 51
+ 
+ 
+def _line():
+    print(f"+{'-' * (WIDTH + 2)}+")
+ 
+ 
+def _row(text):
+    print(f"| {text:<{WIDTH}} |")
+ 
+ 
 def show_standings(standings):
+    header = f"{'Team':<22}{'P':>3}{'W':>3}{'D':>3}{'L':>3}{'GF':>4}{'GA':>4}{'GD':>4}{'Pts':>5}"
     for group in sorted(standings):
-        print(f"\n{group}")
-        print(f"  {'Team':<22}{'P':>3}{'W':>3}{'D':>3}{'L':>3}{'GF':>4}{'GA':>4}{'GD':>4}{'Pts':>5}")
+        print()
+        _line()
+        _row(group)
+        _line()
+        _row(header)
+        _line()
         for team, s in rank(standings[group]):
             gd = s["GF"] - s["GA"]
-            print(f"  {team:<22}{s['P']:>3}{s['W']:>3}{s['D']:>3}{s['L']:>3}"
-                  f"{s['GF']:>4}{s['GA']:>4}{gd:>+4}{s['Pts']:>5}")
+            _row(f"{team:<22}{s['P']:>3}{s['W']:>3}{s['D']:>3}{s['L']:>3}"
+                 f"{s['GF']:>4}{s['GA']:>4}{gd:>+4}{s['Pts']:>5}")
+        _line()
  
  
 def show_scorers(scorers):
-    print(f"\n{'Rk':>3}  {'Player':<22}{'Team':<16}{'G':>3}")
-    print("  " + "-" * 44)
+    header = f"{'Rk':>3}  {'Player':<22}{'Team':<18}{'G':>3}"
+    print()
+    _line()
+    _row("TOP SCORERS")
+    _line()
+    _row(header)
+    _line()
     for i, (scorer, team, goals) in enumerate(scorers, 1):
-        print(f"{i:>3}  {scorer:<22}{team:<16}{goals:>3}")
+        _row(f"{i:>3}  {scorer:<22}{team:<18}{goals:>3}")
+    _line()
 
 
 # --- RUN FLOW ---
@@ -264,10 +287,7 @@ def run():
     log.info("serve: exported %d standings + %d scorers to %s/", n_standings, n_scorers, OUTPUT_DIR)
  
     show_standings(standings)
-    print("\n" + "=" * 56)
-    print("\nTOP SCORERS")
     show_scorers(scorers)
-    print("\n")
     log.info("Pipeline finished.")
  
  
