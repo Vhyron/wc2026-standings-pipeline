@@ -4,6 +4,27 @@ import csv
 import os
 import sqlite3
 import sys
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-7s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger("pipeline")
+import logging
+
+# Log to both the console and a file, each line timestamped.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.FileHandler("pipeline.log"),
+        logging.StreamHandler(sys.stdout),
+    ],
+)
+log = logging.getLogger(__name__)
 
 URL = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json"
 DB_FILE = "worldcup-2026.db"
@@ -221,37 +242,38 @@ def show_scorers(scorers):
 # --- RUN FLOW ---
  
 def run():
-    print("Starting pipeline...")
+    log.info("Starting pipeline...")
  
     matches = extract()
-    print(f"  extract: pulled {len(matches)} matches")
+    log.info("extract: pulled %d matches", len(matches))
  
     conn = sqlite3.connect(DB_FILE)
     try:
         setup_tables(conn)
         n_matches = load_matches(conn, matches)
         n_goals = load_goals(conn, matches)
-        print(f"  load: {n_matches} matches, {n_goals} goals")
+        log.info("load: %d matches, %d goals", n_matches, n_goals)
  
         standings = build_standings(conn)
         scorers = top_scorers(conn)
-        print(f"  transform: {len(standings)} group tables, top scorers ranked")
+        log.info("transform: %d group tables, top scorers ranked", len(standings))
     finally:
         conn.close()
 
     n_standings, n_scorers = serve(standings, scorers)
-    print(f"  serve: exported {n_standings} standings + {n_scorers} scorers to {OUTPUT_DIR}/")
+    log.info("serve: exported %d standings + %d scorers to %s/", n_standings, n_scorers, OUTPUT_DIR)
  
     show_standings(standings)
-    print("\n" + "=" * 48)
+    print("\n" + "=" * 56)
     print("\nTOP SCORERS")
     show_scorers(scorers)
-    print("\nPipeline finished.")
+    print("\n")
+    log.info("Pipeline finished.")
  
  
 if __name__ == "__main__":
     try:
         run()
     except PipelineError as e:
-        print(f"\nERROR: {e}", file=sys.stderr)
+        log.error("%s", e)
         sys.exit(1)
