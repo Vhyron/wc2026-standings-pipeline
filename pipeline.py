@@ -1,11 +1,13 @@
 import urllib.request
 import json
+import csv
+import os
 import sqlite3
 import sys
-from collections import defaultdict
 
 URL = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json"
 DB_FILE = "worldcup-2026.db"
+OUTPUT_DIR = "output"
 
 
 class PipelineError(Exception):
@@ -152,6 +154,51 @@ def top_scorers(conn, limit=10):
     """, (limit,)).fetchall()
 
 
+# --- SERVE: export to JSON + CSV ---
+ 
+def standings_to_records(standings):
+    records = []
+    for group in sorted(standings):
+        for pos, (team, s) in enumerate(rank(standings[group]), 1):
+            records.append({
+                "group": group, "position": pos, "team": team,
+                "played": s["P"], "won": s["W"], "drawn": s["D"], "lost": s["L"],
+                "goals_for": s["GF"], "goals_against": s["GA"],
+                "goal_difference": s["GF"] - s["GA"], "points": s["Pts"],
+            })
+    return records
+ 
+ 
+def scorers_to_records(scorers):
+    return [{"rank": i, "player": name, "team": team, "goals": goals}
+            for i, (name, team, goals) in enumerate(scorers, 1)]
+ 
+ 
+def write_json(path, data):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+ 
+ 
+def write_csv(path, records):
+    if not records:
+        return
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=records[0].keys())
+        writer.writeheader()
+        writer.writerows(records)
+ 
+ 
+def serve(standings, scorers):
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    standings_records = standings_to_records(standings)
+    scorers_records = scorers_to_records(scorers)
+    write_json(f"{OUTPUT_DIR}/standings.json", standings_records)
+    write_csv(f"{OUTPUT_DIR}/standings.csv", standings_records)
+    write_json(f"{OUTPUT_DIR}/scorers.json", scorers_records)
+    write_csv(f"{OUTPUT_DIR}/scorers.csv", scorers_records)
+    return len(standings_records), len(scorers_records)
+
+
 # --- DISPLAY ---
  
 def show_standings(standings):
@@ -191,6 +238,9 @@ def run():
         print(f"  transform: {len(standings)} group tables, top scorers ranked")
     finally:
         conn.close()
+
+    n_standings, n_scorers = serve(standings, scorers)
+    print(f"  serve: exported {n_standings} standings + {n_scorers} scorers to {OUTPUT_DIR}/")
  
     show_standings(standings)
     print("\n" + "=" * 48)
