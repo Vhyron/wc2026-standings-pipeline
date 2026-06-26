@@ -2,19 +2,23 @@ import urllib.request
 import json
 import sqlite3
 import sys
+from collections import defaultdict
 
 URL = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json"
 DB_FILE = "worldcup-2026.db"
 
 
-# --- EXTRACT ---
+class PipelineError(Exception):
+    pass
+ 
+ 
+# --- EXTRACT (once, shared by all loaders) ---
 
 def extract():
     try:
         with urllib.request.urlopen(URL, timeout=15) as response:
             data = json.loads(response.read())
     except urllib.error.URLError as e:
-        # Network down, DNS fail, timeout: stop cleanly, don't touch the db.
         raise PipelineError(f"extract failed: could not reach source ({e.reason})")
     except json.JSONDecodeError:
         raise PipelineError("extract failed: source returned invalid JSON")
@@ -22,13 +26,12 @@ def extract():
     matches = data.get("matches")
     if not matches:
         raise PipelineError("extract failed: no matches in source data")
-
     return matches
 
 
 # --- LOAD ---
 
-def load(conn, matches):
+def setup_tables(conn):
     conn.execute("""
         CREATE TABLE IF NOT EXISTS matches (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,12 +44,24 @@ def load(conn, matches):
             UNIQUE (match_group, team1, team2)
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS goals (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            match_group TEXT,
+            scorer      TEXT,
+            team        TEXT,
+            minute      TEXT,
+            UNIQUE (match_group, scorer, team, minute)
+        )
+    """)
+    conn.commit()
 
+
+def load_matches(conn, matches):
     loaded = 0
     for m in matches:
         if "group" not in m:
             continue
-
         if "score" in m:
             score1, score2 = m["score"]["ft"]
             played = 1
@@ -60,48 +75,59 @@ def load(conn, matches):
             VALUES (?, ?, ?, ?, ?, ?)
         """, (m["group"], m["team1"], m["team2"], score1, score2, played))
         loaded += 1
-
     conn.commit()
 
     if loaded == 0:
         raise PipelineError("load failed: no group-stage matches found")
-
     return loaded
 
 
-# --- TRANSFORM ---
+def load_goals(conn, matches):
+    loaded = 0
+    for m in matches:
+        if "group" not in m:
+            continue
+        # goals1 belongs to team1, goals2 to team2.
+        for side, team in (("goals1", m["team1"]), ("goals2", m["team2"])):
+            for g in m.get(side, []):
+                conn.execute("""
+                    INSERT OR REPLACE INTO goals (match_group, scorer, team, minute)
+                    VALUES (?, ?, ?, ?)
+                """, (m["group"], g["name"], team, g.get("minute")))
+                loaded += 1
+    conn.commit()
+    return loaded
+
+
+# --- TRANSFORM: standings ---
 
 def blank_row():
     return {"P": 0, "W": 0, "D": 0, "L": 0, "GF": 0, "GA": 0, "Pts": 0}
 
 
-def transform(conn):
+def build_standings(conn):
     groups = {}
     rows = conn.execute("""
         SELECT match_group, team1, team2, score1, score2
         FROM matches WHERE played = 1
     """).fetchall()
-
+ 
     for group, team1, team2, s1, s2 in rows:
         table = groups.setdefault(group, {})
         t1 = table.setdefault(team1, blank_row())
         t2 = table.setdefault(team2, blank_row())
 
-        t1["P"] += 1
-        t2["P"] += 1
+        t1["P"] += 1; t2["P"] += 1
         t1["GF"] += s1; t1["GA"] += s2
         t2["GF"] += s2; t2["GA"] += s1
-
+        
         if s1 > s2:
-            t1["W"] += 1; t1["Pts"] += 3
-            t2["L"] += 1
+            t1["W"] += 1; t1["Pts"] += 3; t2["L"] += 1
         elif s2 > s1:
-            t2["W"] += 1; t2["Pts"] += 3
-            t1["L"] += 1
+            t2["W"] += 1; t2["Pts"] += 3; t1["L"] += 1
         else:
             t1["D"] += 1; t1["Pts"] += 1
             t2["D"] += 1; t2["Pts"] += 1
-
     return groups
 
 
@@ -114,7 +140,21 @@ def rank(table):
     )
 
 
-def show(standings):
+# --- TRANSFORM: top scorers ---
+ 
+def top_scorers(conn, limit=10):
+    return conn.execute("""
+        SELECT scorer, team, COUNT(*) AS goals
+        FROM goals
+        GROUP BY scorer, team
+        ORDER BY goals DESC, scorer ASC
+        LIMIT ?
+    """, (limit,)).fetchall()
+
+
+# --- DISPLAY ---
+ 
+def show_standings(standings):
     for group in sorted(standings):
         print(f"\n{group}")
         print(f"  {'Team':<22}{'P':>3}{'W':>3}{'D':>3}{'L':>3}{'GF':>4}{'GA':>4}{'GD':>4}{'Pts':>5}")
@@ -122,39 +162,46 @@ def show(standings):
             gd = s["GF"] - s["GA"]
             print(f"  {team:<22}{s['P']:>3}{s['W']:>3}{s['D']:>3}{s['L']:>3}"
                   f"{s['GF']:>4}{s['GA']:>4}{gd:>+4}{s['Pts']:>5}")
+ 
+ 
+def show_scorers(scorers):
+    print(f"\n{'Rk':>3}  {'Player':<22}{'Team':<16}{'G':>3}")
+    print("  " + "-" * 44)
+    for i, (scorer, team, goals) in enumerate(scorers, 1):
+        print(f"{i:>3}  {scorer:<22}{team:<16}{goals:>3}")
 
 
-# --- ORCHESTRATION OF THE RUN (the run flow itself) ---
-
-class PipelineError(Exception):
-    pass
-
-
+# --- RUN FLOW ---
+ 
 def run():
     print("Starting pipeline...")
-
+ 
     matches = extract()
     print(f"  extract: pulled {len(matches)} matches")
-
-    # One connection for the whole run; closed even if a later step fails.
+ 
     conn = sqlite3.connect(DB_FILE)
     try:
-        loaded = load(conn, matches)
-        print(f"  load: stored {loaded} group-stage matches")
-
-        standings = transform(conn)
-        print(f"  transform: built {len(standings)} group tables")
+        setup_tables(conn)
+        n_matches = load_matches(conn, matches)
+        n_goals = load_goals(conn, matches)
+        print(f"  load: {n_matches} matches, {n_goals} goals")
+ 
+        standings = build_standings(conn)
+        scorers = top_scorers(conn)
+        print(f"  transform: {len(standings)} group tables, top scorers ranked")
     finally:
         conn.close()
-
-    show(standings)
+ 
+    show_standings(standings)
+    print("\n" + "=" * 48)
+    print("\nTOP SCORERS")
+    show_scorers(scorers)
     print("\nPipeline finished.")
-
-
+ 
+ 
 if __name__ == "__main__":
     try:
         run()
     except PipelineError as e:
-        # Expected, handled failures: clear message, non-zero exit for cron.
         print(f"\nERROR: {e}", file=sys.stderr)
         sys.exit(1)
