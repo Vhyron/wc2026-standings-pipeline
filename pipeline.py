@@ -6,14 +6,6 @@ import sqlite3
 import sys
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-7s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-log = logging.getLogger("pipeline")
-import logging
-
 # Log to both the console and a file, each line timestamped.
 logging.basicConfig(
     level=logging.INFO,
@@ -289,6 +281,7 @@ def run():
     show_standings(standings)
     show_scorers(scorers)
     log.info("Pipeline finished.")
+    print()
  
  
 if __name__ == "__main__":
