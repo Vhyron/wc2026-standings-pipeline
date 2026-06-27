@@ -7,7 +7,7 @@ A four-layer ELT data pipeline that ingests FIFA World Cup 2026 group-stage resu
 Every run, the pipeline:
 
 1. Pulls all World Cup 2026 match data from a public source [openfootball](https://github.com/openfootball/worldcup.json)
-2. Stores group-stage matches and goal events in a local SQLite database
+2. Stores group-stage matches and goal events in a local DuckDB database
 3. Computes group standings (points, W/D/L, goal difference) and top scorers
 4. Exports the results to JSON and CSV, and prints readable tables to the console
 
@@ -19,7 +19,7 @@ stale data, so you always end up with one clean, current result.
 ```
 EXTRACT          pull match data from openfootball (public domain, no API key)
    |
-LOAD             store group-stage matches + goal events in worldcup.db (SQLite)
+LOAD             store group-stage matches + goal events in worldcup.duckdb (DuckDB)
    |
 TRANSFORM        derive standings (with tiebreakers) and top scorers
    |
@@ -40,7 +40,7 @@ Match data comes from [openfootball](https://github.com/openfootball/worldcup.js
 pipeline.py        the full ELT pipeline (single entry point)
 dashboard.html     the web dashboard (reads the exported JSON)
 setup_cron.sh      prints the cron line + setup steps for this machine
-worldcup_2026.db   SQLite database (generated, gitignored)
+worldcup.duckdb    DuckDB database (generated, gitignored)
 output/            exported standings/scorers as JSON + CSV (generated, gitignored)
 pipeline.log       run log (generated, gitignored)
 ```
@@ -48,10 +48,11 @@ pipeline.log       run log (generated, gitignored)
 ## Running the pipeline
 
 ```bash
+pip install -r requirements.txt   # inside a venv if your system python is externally managed
 python3 pipeline.py
 ```
 
-No dependencies, uses only the Python standard library. Produces the console tables and writes four files into `output/`. Paths are anchored to the script's own location, so it writes to the same place whether run by hand or by cron.
+The only dependency is DuckDB, the local analytical store; everything else is the Python standard library. Produces the console tables and writes four files into `output/`. Paths are anchored to the script's own location, so it writes to the same place whether run by hand or by cron.
 
 ## Running the dashboard
  

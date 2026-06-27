@@ -5,7 +5,8 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PYTHON="$(command -v python3)"
+# Use the project venv so duckdb is importable under cron's bare environment.
+PYTHON="$DIR/venv/bin/python"
 CRON_LINE="0 8 * * * $PYTHON $DIR/pipeline.py >> $DIR/pipeline.log 2>&1"
 
 echo ""

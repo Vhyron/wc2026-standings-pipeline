@@ -217,8 +217,14 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# SQLite
+# Local tooling (Claude Code settings, headroom proxy cache)
+.claude/
+.tokensave/
+
+# Databases
 *.db
+*.duckdb
+*.duckdb.wal
 
 # CSV & JSON Outputs
 output/

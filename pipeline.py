@@ -2,7 +2,7 @@ import urllib.request
 import json
 import csv
 import os
-import sqlite3
+import duckdb
 import sys
 import logging
 
@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 URL = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json"
-DB_FILE = os.path.join(BASE_DIR, "worldcup_2026.db")
+DB_FILE = os.path.join(BASE_DIR, "worldcup.duckdb")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 
 
@@ -48,27 +48,24 @@ def extract():
 def setup_tables(conn):
     conn.execute("""
         CREATE TABLE IF NOT EXISTS matches (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
             match_group TEXT,
             team1       TEXT,
             team2       TEXT,
             score1      INTEGER,
             score2      INTEGER,
             played      INTEGER,
-            UNIQUE (match_group, team1, team2)
+            PRIMARY KEY (match_group, team1, team2)
         )
     """)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS goals (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
             match_group TEXT,
             scorer      TEXT,
             team        TEXT,
             minute      TEXT,
-            UNIQUE (match_group, scorer, team, minute)
+            PRIMARY KEY (match_group, scorer, team, minute)
         )
     """)
-    conn.commit()
 
 
 def load_matches(conn, matches):
@@ -89,7 +86,6 @@ def load_matches(conn, matches):
             VALUES (?, ?, ?, ?, ?, ?)
         """, (m["group"], m["team1"], m["team2"], score1, score2, played))
         loaded += 1
-    conn.commit()
 
     if loaded == 0:
         raise PipelineError("load failed: no group-stage matches found")
@@ -107,9 +103,8 @@ def load_goals(conn, matches):
                 conn.execute("""
                     INSERT OR REPLACE INTO goals (match_group, scorer, team, minute)
                     VALUES (?, ?, ?, ?)
-                """, (m["group"], g["name"], team, g.get("minute")))
+                """, (m["group"], g["name"], team, g.get("minute") or ""))
                 loaded += 1
-    conn.commit()
     return loaded
 
 
@@ -261,7 +256,7 @@ def run():
     matches = extract()
     log.info("extract: pulled %d matches", len(matches))
  
-    conn = sqlite3.connect(DB_FILE)
+    conn = duckdb.connect(DB_FILE)
     try:
         setup_tables(conn)
         n_matches = load_matches(conn, matches)
