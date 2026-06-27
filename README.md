@@ -1,6 +1,6 @@
 # World Cup 2026 Standings Pipeline
 
-A four-layer ELT data pipeline that ingests FIFA World Cup 2026 group-stage results, computes group standings and a top-scorers leaderboard, and exports them to JSON and CSV.
+A four-layer ELT data pipeline that ingests FIFA World Cup 2026 group-stage results, computes group standings and a top-scorers leaderboard, and serves them as JSON, CSV, and a web dashboard.
 
 ## What it does
 
@@ -23,7 +23,7 @@ LOAD             store group-stage matches + goal events in worldcup.db (SQLite)
    |
 TRANSFORM        derive standings (with tiebreakers) and top scorers
    |
-SERVE            export to JSON + CSV, print bordered tables to console
+SERVE            export to JSON + CSV, print console bordered tables, feed the dashboard
    |
 ORCHESTRATION    cron triggers a daily run
 ```
@@ -38,19 +38,30 @@ Match data comes from [openfootball](https://github.com/openfootball/worldcup.js
 
 ```
 pipeline.py        the full ELT pipeline (single entry point)
+dashboard.html     the web dashboard (reads the exported JSON)
 setup_cron.sh      prints the cron line + setup steps for this machine
-worldcup.db        SQLite database (generated, gitignored)
+worldcup_2026.db   SQLite database (generated, gitignored)
 output/            exported standings/scorers as JSON + CSV (generated, gitignored)
 pipeline.log       run log (generated, gitignored)
 ```
 
-## Running it
+## Running the pipeline
 
 ```bash
 python3 pipeline.py
 ```
 
-No dependencies, uses only the Python standard library. Produces the console tables and writes four files into `output/`.
+No dependencies, uses only the Python standard library. Produces the console tables and writes four files into `output/`. Paths are anchored to the script's own location, so it writes to the same place whether run by hand or by cron.
+
+## Running the dashboard
+ 
+`dashboard.html` is a single file with no build step or dependencies. It fetches the JSON from `output/`, so it must be served over HTTP (opening via `file://` will not work).
+ 
+```bash
+python3 -m http.server 8000
+```
+ 
+Then open `http://localhost:8000/dashboard.html`. Any static server works, including the VS Code Live Server extension. Run the pipeline first so `output/` has data. The dashboard has a light and dark theme toggle and JSON/CSV export buttons.
 
 ## Scheduling
 
@@ -80,6 +91,5 @@ Both are written as JSON and CSV.
 - No cards or assists, because no reliable open data source had them for WC2026.
 - Not real-time, since the source updates only about once a day.
 
----
-
+##
 <div align="center"> <sub>Vhyron </div>
