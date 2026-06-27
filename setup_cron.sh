@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
-# Helper: prints the exact crontab line for THIS machine, with correct
-# absolute paths resolved automatically. Run it, copy the line it prints,
-# then `crontab -e` and paste.
+# Prints the cron line + short setup steps for this machine.
+# Doesn't edit the crontab itself -- you paste the line via `crontab -e`.
 
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON="$(command -v python3)"
-SCRIPT="$PROJECT_DIR/pipeline.py"
-LOG="$PROJECT_DIR/pipeline.log"
+CRON_LINE="0 8 * * * $PYTHON $DIR/pipeline.py >> $DIR/pipeline.log 2>&1"
 
-echo "Add this line to your crontab (run 'crontab -e'):"
 echo ""
-echo "0 8 * * * $PYTHON $SCRIPT >> $LOG 2>&1"
+echo "Cron line (daily 08:00):"
+echo "    $CRON_LINE"
 echo ""
-echo "That runs the pipeline daily at 08:00, logging to pipeline.log"
+echo "Install it:"
+echo "  1. crontab -e        open the crontab"
+echo "  2. paste the line    (vim: press i, paste, Esc, type :wq, Enter)"
+echo "  3. crontab -l        confirm it's there"
+echo ""
+echo "macOS: also grant Full Disk Access to /usr/sbin/cron in"
+echo "System Settings > Privacy & Security > Full Disk Access, or the job won't run."
+echo ""
