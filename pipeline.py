@@ -15,9 +15,11 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 URL = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json"
-DB_FILE = "worldcup-2026.db"
-OUTPUT_DIR = "output"
+DB_FILE = os.path.join(BASE_DIR, "worldcup_2026.db")
+OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 
 
 class PipelineError(Exception):
