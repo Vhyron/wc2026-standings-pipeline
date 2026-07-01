@@ -6,9 +6,9 @@ A four-layer ELT data pipeline that ingests FIFA World Cup 2026 group-stage resu
 
 Every run, the pipeline:
 
-1. Pulls all World Cup 2026 match data from a public source [openfootball](https://github.com/openfootball/worldcup.json)
-2. Stores group-stage matches and goal events in a local DuckDB database
-3. Computes group standings (points, W/D/L, goal difference) and top scorers
+1. Pulls match data for every World Cup (1930–2026) from a public source [openfootball](https://github.com/openfootball/worldcup.json)
+2. Stores raw payloads, matches (group stage and knockout), and goal events in a local DuckDB database
+3. Computes 2026 group standings (points, W/D/L, goal difference) and top scorers
 4. Exports the results to JSON and CSV, and prints readable tables to the console
 
 It is idempotent. Each run overwrites the last rather than piling up duplicate or
@@ -17,18 +17,18 @@ stale data, so you always end up with one clean, current result.
 ## Architecture
 
 ```
-EXTRACT          pull match data from openfootball (public domain, no API key)
+EXTRACT          pull each tournament's JSON from openfootball (public domain, no API key)
    |
-LOAD             store group-stage matches + goal events in worldcup.duckdb (DuckDB)
+LOAD             store raw payloads + matches + goal events in worldcup.duckdb (DuckDB)
    |
-TRANSFORM        derive standings (with tiebreakers) and top scorers
+TRANSFORM        derive 2026 standings (with tiebreakers) and top scorers
    |
 SERVE            export to JSON + CSV, print console bordered tables, feed the dashboard
    |
 ORCHESTRATION    cron triggers a daily run
 ```
 
-Only the 72 group-stage matches are loaded. The 32 knockout matches in the source (which use placeholder teams like `2A` until groups are decided) are skipped.
+All 23 tournaments (1930–2026, none in 1942/1946) are loaded — about 1,100 matches, both group stage and knockout. Each tournament is replaced wholesale on every run (delete-then-insert), so runs stay idempotent. The raw JSON payloads are also kept in the database, so downstream transforms can always be rebuilt from exactly what the source said.
 
 ## Data source
 
@@ -89,6 +89,7 @@ Both are written as JSON and CSV.
 ## Known limitations
 
 - Tiebreakers stop at goal difference and goals scored. The later FIFA rules (head-to-head, cards, random draw) need data the source doesn't provide.
+- Goal-scorer events are only complete for 1930–1950 and 2014–2026; the source has few or none for 1954–2010. Match results are complete for all tournaments.
 - No cards or assists, because no reliable open data source had them for WC2026.
 - Not real-time, since the source updates only about once a day.
 
