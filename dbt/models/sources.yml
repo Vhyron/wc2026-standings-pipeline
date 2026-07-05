@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Verbatim openfootball payloads loaded by pipeline.py.
+    schema: main
+    tables:
+      - name: raw_payloads
+        description: One row per tournament; full worldcup.json payload as JSON.
+        columns:
+          - name: year
+            tests: [not_null, unique]
+          - name: payload
+            tests: [not_null]

@@ -1,1 +1,5 @@
 duckdb>=1.5
+dbt-duckdb>=1.9
+# dbt-core pins mashumaro<3.15, but 3.15+ is required on Python 3.14
+# (older versions crash with UnserializableField). Harmless pin conflict.
+mashumaro>=3.22

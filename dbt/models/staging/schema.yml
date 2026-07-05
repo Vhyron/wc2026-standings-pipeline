@@ -1,0 +1,39 @@
+version: 2
+
+models:
+  - name: stg_matches
+    description: One row per match across all tournaments, group stage and knockout.
+    columns:
+      - name: match_key
+        tests: [not_null, unique]
+      - name: team1
+        tests: [not_null]
+      - name: team2
+        tests: [not_null]
+      - name: stage
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["group", "knockout"]
+
+  - name: stg_goals
+    description: >
+      One row per goal event. Scorer data is only complete for 1930-1950 and
+      2014-2026; the source has few or no goal events for 1954-2010.
+    columns:
+      - name: goal_key
+        tests: [not_null, unique]
+      - name: scorer
+        tests: [not_null]
+      - name: match_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_matches')
+                field: match_key
+
+  - name: stg_tournaments
+    columns:
+      - name: year
+        tests: [not_null, unique]

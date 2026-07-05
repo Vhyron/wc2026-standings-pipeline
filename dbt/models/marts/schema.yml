@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: standings
+    description: Group-stage standings per tournament, ranked by points, goal difference, goals for.
+    columns:
+      - name: position
+        tests: [not_null]
+      - name: team
+        tests: [not_null]
+      - name: points
+        tests: [not_null]
+
+  - name: top_scorers
+    description: Per-tournament scorer leaderboard (excludes own goals).
+    columns:
+      - name: player
+        tests: [not_null]
+      - name: goals
+        tests: [not_null]

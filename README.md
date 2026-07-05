@@ -19,13 +19,29 @@ stale data, so you always end up with one clean, current result.
 ```
 EXTRACT          pull each tournament's JSON from openfootball (public domain, no API key)
    |
-LOAD             store raw payloads + matches + goal events in worldcup.duckdb (DuckDB)
+LOAD             store verbatim raw payloads in worldcup.duckdb (DuckDB)
    |
-TRANSFORM        derive 2026 standings (with tiebreakers) and top scorers
+TRANSFORM        dbt builds staging -> intermediate -> marts, with data tests
    |
-SERVE            export to JSON + CSV, print console bordered tables, feed the dashboard
+SERVE            export marts to JSON + CSV, print console tables, feed the dashboard
    |
 ORCHESTRATION    cron triggers a daily run
+```
+
+The transform layer is a dbt project in `dbt/`:
+
+```
+staging          stg_matches, stg_goals, stg_tournaments — parse + type the raw JSON
+intermediate     int_team_match_results — one row per team per played match
+marts            standings, top_scorers — per tournament, what consumers read
+```
+
+Every model run also runs data tests (unique keys, not-null columns, accepted
+values, referential integrity between goals and matches). The pipeline fails if
+a test fails. To run the transforms alone:
+
+```bash
+dbt build --project-dir dbt --profiles-dir dbt
 ```
 
 All 23 tournaments (1930–2026, none in 1942/1946) are loaded — about 1,100 matches, both group stage and knockout. Each tournament is replaced wholesale on every run (delete-then-insert), so runs stay idempotent. The raw JSON payloads are also kept in the database, so downstream transforms can always be rebuilt from exactly what the source said.
@@ -37,7 +53,8 @@ Match data comes from [openfootball](https://github.com/openfootball/worldcup.js
 ## Project layout
 
 ```
-pipeline.py        the full ELT pipeline (single entry point)
+pipeline.py        the ELT pipeline (single entry point; calls dbt for transforms)
+dbt/               dbt project: staging -> intermediate -> marts models + tests
 dashboard.html     the web dashboard (reads the exported JSON)
 setup_cron.sh      prints the cron line + setup steps for this machine
 worldcup.duckdb    DuckDB database (generated, gitignored)
@@ -52,7 +69,7 @@ pip install -r requirements.txt   # inside a venv if your system python is exter
 python3 pipeline.py
 ```
 
-The only dependency is DuckDB, the local analytical store; everything else is the Python standard library. Produces the console tables and writes four files into `output/`. Paths are anchored to the script's own location, so it writes to the same place whether run by hand or by cron.
+Dependencies: DuckDB (local analytical store) and dbt-duckdb (transform layer). Everything else is the Python standard library. Produces the console tables and writes four files into `output/`. Paths are anchored to the script's own location, so it writes to the same place whether run by hand or by cron.
 
 ## Running the dashboard
  

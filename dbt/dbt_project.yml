@@ -1,0 +1,16 @@
+name: worldcup
+version: "1.0.0"
+profile: worldcup
+
+model-paths: ["models"]
+
+models:
+  worldcup:
+    staging:
+      # Views: cheap to rebuild, always reflect the raw layer.
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      # Tables: these are what consumers (exports, dashboard, API) read.
+      +materialized: table

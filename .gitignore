@@ -217,6 +217,12 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# dbt artifacts
+dbt/target/
+dbt/logs/
+dbt/.user.yml
+logs/
+
 # Local tooling (Claude Code settings, headroom proxy cache)
 .claude/
 .tokensave/
