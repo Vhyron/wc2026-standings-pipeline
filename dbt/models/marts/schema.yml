@@ -18,3 +18,25 @@ models:
         tests: [not_null]
       - name: goals
         tests: [not_null]
+
+  - name: scoring_trends
+    description: Per-tournament scoring profile, built from match scores (complete for all years).
+    columns:
+      - name: year
+        tests: [not_null, unique]
+      - name: goals_per_match
+        tests: [not_null]
+
+  - name: knockout_upsets
+    description: Knockout wins by the team with the worse group-stage record that tournament.
+    columns:
+      - name: winner
+        tests: [not_null]
+      - name: loser
+        tests: [not_null]
+
+  - name: team_records
+    description: All-time per-team record; historical entities (West Germany, Soviet Union) stay distinct.
+    columns:
+      - name: team
+        tests: [not_null, unique]

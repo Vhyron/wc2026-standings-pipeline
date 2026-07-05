@@ -1,18 +1,17 @@
-# World Cup 2026 Standings Pipeline
+# World Cup Analytics Pipeline
 
-A four-layer ELT data pipeline that ingests FIFA World Cup 2026 group-stage results, computes group standings and a top-scorers leaderboard, and serves them as JSON, CSV, and a web dashboard.
+An ELT analytics pipeline over every FIFA World Cup (1930–2026). It ingests full tournament history into DuckDB, models it with dbt into tested staging/intermediate/mart layers, and serves the current tournament's standings and top scorers as JSON, CSV, and a web dashboard.
 
 ## What it does
 
 Every run, the pipeline:
 
 1. Pulls match data for every World Cup (1930–2026) from a public source [openfootball](https://github.com/openfootball/worldcup.json)
-2. Stores raw payloads, matches (group stage and knockout), and goal events in a local DuckDB database
-3. Computes 2026 group standings (points, W/D/L, goal difference) and top scorers
-4. Exports the results to JSON and CSV, and prints readable tables to the console
+2. Stores the verbatim JSON payloads in a local DuckDB database (the raw layer)
+3. Runs dbt to build standings and top scorers for all 23 tournaments, with data tests
+4. Exports the current tournament's (2026) results to JSON and CSV, and prints readable tables to the console
 
-It is idempotent. Each run overwrites the last rather than piling up duplicate or
-stale data, so you always end up with one clean, current result.
+It is idempotent. Each run overwrites the last rather than piling up duplicate or stale data, so you always end up with one clean, current result.
 
 ## Architecture
 
@@ -33,12 +32,26 @@ The transform layer is a dbt project in `dbt/`:
 ```
 staging          stg_matches, stg_goals, stg_tournaments — parse + type the raw JSON
 intermediate     int_team_match_results — one row per team per played match
-marts            standings, top_scorers — per tournament, what consumers read
+                 int_match_outcomes — one row per match with the decided winner
+                 (extra time and penalties included, not just full time)
+marts            standings, top_scorers — per tournament, what the exports read
+                 scoring_trends — goals/match, draw rate, ET/penalty counts per tournament
+                 knockout_upsets — knockout wins by the team with the worse group record
+                 team_records — all-time W/D/L and goals per team
 ```
 
-Every model run also runs data tests (unique keys, not-null columns, accepted
-values, referential integrity between goals and matches). The pipeline fails if
-a test fails. To run the transforms alone:
+Example — query the analytics marts directly:
+
+```sql
+-- how scoring has changed across eras
+SELECT year, goals_per_match, draw_rate FROM scoring_trends;
+
+-- biggest knockout upsets ever (by group-stage points gap)
+SELECT year, round, winner, loser, score, points_gap
+FROM knockout_upsets ORDER BY points_gap DESC LIMIT 10;
+```
+
+Every model run also runs data tests (unique keys, not-null columns, accepted values, referential integrity between goals and matches). The pipeline fails if a test fails. To run the transforms alone:
 
 ```bash
 dbt build --project-dir dbt --profiles-dir dbt
@@ -97,7 +110,9 @@ Each run is logged with timestamps to `pipeline.log`.
 
 ## Output
 
-**Standings** for each group show position, team, played, won, drawn, lost, goals for and against, goal difference, and points. They are ranked by points, then goal difference, then goals scored.
+The `standings` and `top_scorers` marts cover all 23 tournaments and can be queried directly in DuckDB. The file exports track the current tournament (2026):
+
+**Standings** for each group show position, team, played, won, drawn, lost, goals for and against, goal difference, and points. They are ranked by points, then goal difference, then goals scored, using the points rule of each era (2 per win before 1994, 3 since).
 
 **Top Scorers** show player, team, and goals.
 
