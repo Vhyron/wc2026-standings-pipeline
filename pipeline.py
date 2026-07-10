@@ -141,6 +141,41 @@ def serve(standings_records, scorers_records):
     return len(standings_records), len(scorers_records)
 
 
+# --- SERVE: publish marts to BigQuery (optional cloud target) ---
+
+# Multi-target serving: DuckDB stays the local store and transform engine;
+# BigQuery receives a copy of the finished marts for cloud consumers.
+BQ_TABLES = ["standings", "top_scorers", "scoring_trends", "knockout_upsets", "team_records"]
+
+
+def publish_bigquery(conn):
+    project = os.environ.get("WC_BQ_PROJECT")
+    dataset = os.environ.get("WC_BQ_DATASET")
+    if not project or not dataset:
+        return None  # cloud target not configured; local-only run
+
+    from google.cloud import bigquery
+
+    client = bigquery.Client(project=project)
+    job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE", autodetect=True)
+
+    total_rows = 0
+    for table in BQ_TABLES:
+        cursor = conn.execute(f"SELECT * FROM {table}")
+        columns = [d[0] for d in cursor.description]
+        rows = [
+            {col: (val.isoformat() if hasattr(val, "isoformat") else val)
+             for col, val in zip(columns, row)}
+            for row in cursor.fetchall()
+        ]
+        try:
+            client.load_table_from_json(rows, f"{project}.{dataset}.{table}", job_config=job_config).result()
+        except Exception as e:
+            raise PipelineError(f"publish failed for {dataset}.{table}: {e}")
+        total_rows += len(rows)
+    return total_rows
+
+
 # --- DISPLAY ---
 
 WIDTH = 51
@@ -208,11 +243,16 @@ def run():
     try:
         standings_records = fetch_standings(conn, CURRENT_YEAR)
         scorers_records = fetch_scorers(conn, CURRENT_YEAR)
+        published = publish_bigquery(conn)
     finally:
         conn.close()
 
     n_standings, n_scorers = serve(standings_records, scorers_records)
     log.info("serve: exported %d standings + %d scorers to %s/", n_standings, n_scorers, OUTPUT_DIR)
+    if published is None:
+        log.info("serve: BigQuery target not configured, skipped")
+    else:
+        log.info("serve: published %d rows across %d marts to BigQuery", published, len(BQ_TABLES))
 
     show_standings(standings_records)
     show_scorers(scorers_records)

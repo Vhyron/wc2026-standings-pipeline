@@ -22,10 +22,13 @@ LOAD             store verbatim raw payloads in worldcup.duckdb (DuckDB)
    |
 TRANSFORM        dbt builds staging -> intermediate -> marts, with data tests
    |
-SERVE            export marts to JSON + CSV, print console tables, feed the dashboard
+SERVE            export marts to JSON + CSV, publish marts to BigQuery, feed the dashboard
    |
-ORCHESTRATION    cron triggers a daily run
+ORCHESTRATION    GitHub Actions runs the pipeline daily (local cron optional for dev)
 ```
+
+The pipeline is multi-target: DuckDB is the local analytical store and the transform engine; BigQuery receives a copy of the finished marts for cloud
+consumers. This is one pipeline with two destinations, not a backup scheme — the source of truth is openfootball and everything is reproducible from it. The BigQuery publish only runs when `WC_BQ_PROJECT` and `WC_BQ_DATASET` are set, so local runs stay local.
 
 The transform layer is a dbt project in `dbt/`:
 
@@ -68,6 +71,7 @@ Match data comes from [openfootball](https://github.com/openfootball/worldcup.js
 ```
 pipeline.py        the ELT pipeline (single entry point; calls dbt for transforms)
 dbt/               dbt project: staging -> intermediate -> marts models + tests
+.github/workflows/ daily pipeline run on GitHub Actions (+ optional BigQuery publish)
 dashboard.html     the web dashboard (reads the exported JSON)
 setup_cron.sh      prints the cron line + setup steps for this machine
 worldcup.duckdb    DuckDB database (generated, gitignored)
@@ -96,7 +100,17 @@ Then open `http://localhost:8000/dashboard.html`. Any static server works, inclu
 
 ## Scheduling
 
-To run automatically once a day at 08:00:
+`.github/workflows/pipeline.yml` runs the pipeline daily at 06:00 UTC (after openfootball's roughly daily update) and on demand from the Actions tab. Each run uploads the JSON/CSV exports as a workflow artifact.
+
+To enable the BigQuery publish in CI, configure the repo once:
+
+1. Create a GCP project and a BigQuery dataset (the free sandbox tier works — no billing account needed)
+2. Create a service account with the *BigQuery Data Editor* and *BigQuery Job User* roles, and download a JSON key
+3. In the repo settings, add the key as the secret `GCP_SA_KEY`, and add `WC_BQ_PROJECT` and `WC_BQ_DATASET` as Actions variables
+
+Without those, CI still runs — it just skips the cloud publish.
+
+For local development, cron can run the same pipeline daily:
 
 ```bash
 bash setup_cron.sh        # prints the exact cron line for your machine

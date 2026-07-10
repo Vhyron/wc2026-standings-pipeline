@@ -1,0 +1,39 @@
+name: daily-pipeline
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily 06:00 UTC, after openfootball's ~daily update
+  workflow_dispatch: {}    # manual runs from the Actions tab
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write GCP credentials
+        if: ${{ vars.WC_BQ_PROJECT != '' }}
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: printf '%s' "$GCP_SA_KEY" > "$RUNNER_TEMP/gcp-key.json"
+
+      - name: Run pipeline
+        env:
+          WC_BQ_PROJECT: ${{ vars.WC_BQ_PROJECT }}
+          WC_BQ_DATASET: ${{ vars.WC_BQ_DATASET }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-key.json
+        run: python pipeline.py
+
+      - name: Upload exports
+        uses: actions/upload-artifact@v4
+        with:
+          name: outputs
+          path: output/
+          retention-days: 7
