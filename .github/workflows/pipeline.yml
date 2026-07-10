@@ -1,4 +1,4 @@
-name: daily-pipeline
+name: worldcup-workflow
 
 on:
   schedule:
