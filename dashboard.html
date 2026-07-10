@@ -253,8 +253,8 @@ const state = { standings: [], scorers: [] };
 async function load() {
   try {
     const [s, sc] = await Promise.all([
-      fetch('output/standings.json').then(r => r.json()),
-      fetch('output/scorers.json').then(r => r.json()),
+      fetch('/api/tournaments/2026/standings').then(r => r.json()),
+      fetch('/api/tournaments/2026/scorers').then(r => r.json()),
     ]);
     state.standings = s;
     state.scorers = sc;
@@ -265,7 +265,7 @@ async function load() {
       'Updated ' + new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   } catch (e) {
     document.getElementById('groups').innerHTML =
-      '<div class="loading">Could not load data. Run the pipeline first to generate the output files, then serve this folder.</div>';
+      '<div class="loading">Could not load data. Run the pipeline, then start the API: uvicorn api:app</div>';
   }
 }
 
