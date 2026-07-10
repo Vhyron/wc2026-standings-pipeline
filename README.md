@@ -8,8 +8,8 @@ Every run, the pipeline:
 
 1. Pulls match data for every World Cup (1930–2026) from a public source [openfootball](https://github.com/openfootball/worldcup.json)
 2. Stores the verbatim JSON payloads in a local DuckDB database (the raw layer)
-3. Runs dbt to build standings and top scorers for all 23 tournaments, with data tests
-4. Exports the current tournament's (2026) results to JSON and CSV, and prints readable tables to the console
+3. Runs dbt to build standings, top scorers, and analytics marts for all 23 tournaments, with data tests
+4. Publishes the marts to BigQuery (when configured); a FastAPI backend serves them to the dashboard and any other consumer
 
 It is idempotent. Each run overwrites the last rather than piling up duplicate or stale data, so you always end up with one clean, current result.
 
@@ -22,7 +22,7 @@ LOAD             store verbatim raw payloads in worldcup.duckdb (DuckDB)
    |
 TRANSFORM        dbt builds staging -> intermediate -> marts, with data tests
    |
-SERVE            export marts to JSON + CSV, publish marts to BigQuery, feed the dashboard
+SERVE            publish marts to BigQuery; FastAPI serves them live to the dashboard
    |
 ORCHESTRATION    GitHub Actions runs the pipeline daily (local cron optional for dev)
 ```
@@ -70,12 +70,12 @@ Match data comes from [openfootball](https://github.com/openfootball/worldcup.js
 
 ```
 pipeline.py        the ELT pipeline (single entry point; calls dbt for transforms)
+api.py             FastAPI backend serving marts from DuckDB (also hosts the dashboard)
 dbt/               dbt project: staging -> intermediate -> marts models + tests
 .github/workflows/ daily pipeline run on GitHub Actions (+ optional BigQuery publish)
-dashboard.html     the web dashboard (reads the exported JSON)
+dashboard.html     the web dashboard (reads the API)
 setup_cron.sh      prints the cron line + setup steps for this machine
 worldcup.duckdb    DuckDB database (generated, gitignored)
-output/            exported standings/scorers as JSON + CSV (generated, gitignored)
 pipeline.log       run log (generated, gitignored)
 ```
 
@@ -86,21 +86,32 @@ pip install -r requirements.txt   # inside a venv if your system python is exter
 python3 pipeline.py
 ```
 
-Dependencies: DuckDB (local analytical store) and dbt-duckdb (transform layer). Everything else is the Python standard library. Produces the console tables and writes four files into `output/`. Paths are anchored to the script's own location, so it writes to the same place whether run by hand or by cron.
+Dependencies: DuckDB (local analytical store), dbt-duckdb (transform layer), FastAPI + uvicorn (API), google-cloud-bigquery (optional cloud publish). Paths are anchored to the script's own location, so it behaves the same run by hand, by cron, or in CI.
 
-## Running the dashboard
- 
-`dashboard.html` is a single file with no build step or dependencies. It fetches the JSON from `output/`, so it must be served over HTTP (opening via `file://` will not work).
- 
+## Running the API + dashboard
+
 ```bash
-python3 -m http.server 8000
+uvicorn api:app
 ```
- 
-Then open `http://localhost:8000/dashboard.html`. Any static server works, including the VS Code Live Server extension. Run the pipeline first so `output/` has data. The dashboard has a light and dark theme toggle and JSON/CSV export buttons.
+
+Then open `http://localhost:8000` — the API serves the dashboard at the root. Run the pipeline first so the database has data. Interactive API docs at `http://localhost:8000/docs`.
+
+Endpoints:
+
+```
+/api/tournaments                        all 23 tournaments
+/api/tournaments/{year}/standings       group-stage standings for one tournament
+/api/tournaments/{year}/scorers         scorer leaderboard (404 for gap years)
+/api/analytics/scoring-trends           goals/match, draw rate, ET/pens per tournament
+/api/analytics/upsets                   knockout upsets ranked by points gap
+/api/analytics/team-records             all-time per-team records
+```
+
+The dashboard has a light and dark theme toggle and JSON/CSV export buttons (built client-side from the loaded data).
 
 ## Scheduling
 
-`.github/workflows/pipeline.yml` runs the pipeline daily at 06:00 UTC (after openfootball's roughly daily update) and on demand from the Actions tab. Each run uploads the JSON/CSV exports as a workflow artifact.
+`.github/workflows/pipeline.yml` runs the pipeline daily at 06:00 UTC (after openfootball's roughly daily update) and on demand from the Actions tab.
 
 To enable the BigQuery publish in CI, configure the repo once:
 
@@ -124,13 +135,11 @@ Each run is logged with timestamps to `pipeline.log`.
 
 ## Output
 
-The `standings` and `top_scorers` marts cover all 23 tournaments and can be queried directly in DuckDB. The file exports track the current tournament (2026):
+All marts cover all 23 tournaments and are served three ways: queried directly in DuckDB, over the FastAPI endpoints, and from BigQuery for cloud consumers.
 
 **Standings** for each group show position, team, played, won, drawn, lost, goals for and against, goal difference, and points. They are ranked by points, then goal difference, then goals scored, using the points rule of each era (2 per win before 1994, 3 since).
 
-**Top Scorers** show player, team, and goals.
-
-Both are written as JSON and CSV.
+**Top Scorers** show player, team, and goals. The analytics marts cover scoring trends, knockout upsets, and all-time team records.
 
 ## Known limitations
 

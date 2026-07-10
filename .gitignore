@@ -231,6 +231,3 @@ logs/
 *.db
 *.duckdb
 *.duckdb.wal
-
-# CSV & JSON Outputs
-output/
