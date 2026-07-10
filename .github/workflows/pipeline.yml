@@ -32,7 +32,7 @@ jobs:
         run: python pipeline.py
 
       - name: Upload exports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: outputs
           path: output/
