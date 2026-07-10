@@ -1,0 +1,8 @@
+worldcup:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      # The pipeline sets WC_DB_PATH to an absolute path; the default works
+      # for manual `dbt build --project-dir dbt --profiles-dir dbt` from the repo root.
+      path: "{{ env_var('WC_DB_PATH', 'worldcup.duckdb') }}"

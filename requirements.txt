@@ -1,0 +1,9 @@
+duckdb>=1.5
+dbt-duckdb>=1.9
+# dbt-core pins mashumaro<3.15, but 3.15+ is required on Python 3.14
+# (older versions crash with UnserializableField). Harmless pin conflict.
+mashumaro>=3.22
+# Only exercised when WC_BQ_PROJECT/WC_BQ_DATASET are set (cloud publish).
+# Pulls protobuf 7.x, which dbt-adapters pins <7 — pip warns, but both
+# libraries run fine together (verified); the pins are mutually unsatisfiable.
+google-cloud-bigquery>=3.25
