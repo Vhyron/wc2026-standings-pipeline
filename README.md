@@ -1,6 +1,6 @@
 # World Cup Analytics Pipeline
 
-An ELT analytics pipeline over every FIFA World Cup (1930–2026). It ingests full tournament history into DuckDB, models it with dbt into tested staging/intermediate/mart layers, and serves the current tournament's standings and top scorers as JSON, CSV, and a web dashboard.
+An ELT analytics pipeline over every FIFA World Cup (1930–2026). It ingests full tournament history into DuckDB, models it with dbt into tested staging/intermediate/mart layers, and serves standings, scorers, and historical analytics through a FastAPI backend, a web dashboard, and BigQuery.
 
 ## What it does
 
@@ -37,7 +37,8 @@ staging          stg_matches, stg_goals, stg_tournaments — parse + type the ra
 intermediate     int_team_match_results — one row per team per played match
                  int_match_outcomes — one row per match with the decided winner
                  (extra time and penalties included, not just full time)
-marts            standings, top_scorers — per tournament, what the exports read
+marts            standings, top_scorers — per tournament, with era-correct points
+                 (2 per win before 1994, 3 since)
                  scoring_trends — goals/match, draw rate, ET/penalty counts per tournament
                  knockout_upsets — knockout wins by the team with the worse group record
                  team_records — all-time W/D/L and goals per team
@@ -60,7 +61,7 @@ Every model run also runs data tests (unique keys, not-null columns, accepted va
 dbt build --project-dir dbt --profiles-dir dbt
 ```
 
-All 23 tournaments (1930–2026, none in 1942/1946) are loaded — about 1,100 matches, both group stage and knockout. Each tournament is replaced wholesale on every run (delete-then-insert), so runs stay idempotent. The raw JSON payloads are also kept in the database, so downstream transforms can always be rebuilt from exactly what the source said.
+All 23 tournaments (1930–2026, none in 1942/1946) are loaded — 1,069 matches, both group stage and knockout. Each tournament is replaced wholesale on every run (delete-then-insert), so runs stay idempotent. The raw JSON payloads are also kept in the database, so downstream transforms can always be rebuilt from exactly what the source said.
 
 ## Data source
 
@@ -133,19 +134,11 @@ On macOS, grant Full Disk Access to `/usr/sbin/cron` in System Settings > Privac
 
 Each run is logged with timestamps to `pipeline.log`.
 
-## Output
-
-All marts cover all 23 tournaments and are served three ways: queried directly in DuckDB, over the FastAPI endpoints, and from BigQuery for cloud consumers.
-
-**Standings** for each group show position, team, played, won, drawn, lost, goals for and against, goal difference, and points. They are ranked by points, then goal difference, then goals scored, using the points rule of each era (2 per win before 1994, 3 since).
-
-**Top Scorers** show player, team, and goals. The analytics marts cover scoring trends, knockout upsets, and all-time team records.
-
 ## Known limitations
 
 - Tiebreakers stop at goal difference and goals scored. The later FIFA rules (head-to-head, cards, random draw) need data the source doesn't provide.
 - Goal-scorer events are only complete for 1930–1950 and 2014–2026; the source has few or none for 1954–2010. Match results are complete for all tournaments.
-- No cards or assists, because no reliable open data source had them for WC2026.
+- No cards or assists, because no reliable open data source provides them.
 - Not real-time, since the source updates only about once a day.
 
 ##
