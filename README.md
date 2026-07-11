@@ -73,6 +73,7 @@ Match data comes from [openfootball](https://github.com/openfootball/worldcup.js
 pipeline.py        the ELT pipeline (single entry point; calls dbt for transforms)
 api.py             FastAPI backend serving marts from DuckDB (also hosts the dashboard)
 dbt/               dbt project: staging -> intermediate -> marts models + tests
+deploy/            systemd units + walkthrough for self-hosting on a Raspberry Pi
 .github/workflows/ daily pipeline run on GitHub Actions (+ optional BigQuery publish)
 dashboard.html     the web dashboard (reads the API)
 setup_cron.sh      prints the cron line + setup steps for this machine
@@ -121,6 +122,10 @@ To enable the BigQuery publish in CI, configure the repo once:
 3. In the repo settings, add the key as the secret `GCP_SA_KEY`, and add `WC_BQ_PROJECT` and `WC_BQ_DATASET` as Actions variables
 
 Without those, CI still runs — it just skips the cloud publish.
+
+## Self-hosted deployment
+
+The API + dashboard run on a Raspberry Pi Zero 2 W behind a Cloudflare Tunnel: a systemd timer runs the pipeline nightly, a systemd service keeps uvicorn up, and the tunnel exposes it over HTTPS with no open router ports. GitHub Actions stays the independent owner of the BigQuery path, so either half can fail without taking down the other. Full walkthrough in [deploy/PI_SETUP.md](deploy/PI_SETUP.md).
 
 For local development, cron can run the same pipeline daily:
 

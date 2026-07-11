@@ -1,0 +1,11 @@
+# If your username isn't "pi", replace it in User= and both paths.
+[Unit]
+Description=World Cup Analytics pipeline run (extract + load + dbt)
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/worldcup-analytics-pipeline
+ExecStart=/home/pi/worldcup-analytics-pipeline/venv/bin/python pipeline.py
+# dbt build is the memory peak; keep it polite next to Pi-hole/Unbound
+Nice=10
