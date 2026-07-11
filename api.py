@@ -31,7 +31,8 @@ def query(sql, params=()):
 
 @app.get("/", include_in_schema=False)
 def dashboard():
-    return FileResponse(DASHBOARD)
+    # no-cache: always revalidate so a redesigned dashboard shows up on reload
+    return FileResponse(DASHBOARD, headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/api/tournaments")
