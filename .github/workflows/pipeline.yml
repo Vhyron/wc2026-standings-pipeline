@@ -30,10 +30,3 @@ jobs:
           WC_BQ_DATASET: ${{ vars.WC_BQ_DATASET }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-key.json
         run: python pipeline.py
-
-      - name: Upload exports
-        uses: actions/upload-artifact@v4
-        with:
-          name: outputs
-          path: output/
-          retention-days: 7

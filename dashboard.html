@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WC26 Group Standings</title>
+<title>World Cup Analytics</title>
 <style>
   :root {
     --gold: #C9A24B;
@@ -56,14 +56,14 @@
   .brand { display: flex; align-items: baseline; gap: 10px; }
   .brand .mark {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-    font-weight: 700; font-size: 28px; 
+    font-weight: 700; font-size: 24px;
   }
   .brand .mark b { color: var(--gold); }
   .brand .sub {
     font-size: 12px; text-transform: uppercase;
     color: var(--text-faint);
   }
-  .header-right { display: flex; align-items: center; gap: 16px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
   .updated { font-size: 12px; color: var(--text-dim); }
   .toggle {
     background: var(--surface); border: 1px solid var(--border);
@@ -73,7 +73,14 @@
   }
   .toggle:hover { border-color: var(--gold); }
   .toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-
+  .year-select {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); font-family: inherit; font-size: 13px; font-weight: 600;
+    padding: 9px 12px; border-radius: 10px; cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .year-select:hover { border-color: var(--gold); }
+  .year-select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
   /* Stats row */
   .stats {
@@ -103,6 +110,7 @@
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
     font-weight: 700; font-size: 28px; text-transform: uppercase;
   }
+  .section-head .note { font-size: 12px; color: var(--text-faint); }
   .exports { display: flex; gap: 8px; }
   .btn {
     background: var(--surface); border: 1px solid var(--border);
@@ -136,7 +144,7 @@
     color: var(--text-faint);
   }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  thead th:not(.team-col), tbody td:not(.team-col) { width: 44px; }
+  .group-card thead th:not(.team-col), .group-card tbody td:not(.team-col) { width: 44px; }
   thead th {
     font-size: 12px; text-transform: uppercase;
     color: var(--text-faint); font-weight: 600; text-align: center;
@@ -156,11 +164,10 @@
     display: inline-block; width: 16px; color: var(--text-faint);
     font-size: 10px;
   }
-  /* Qualification: top 2 advance */
+  /* Qualification cutline (2026 format: top 2 advance) */
   tbody tr.qualified td.team-col .pos { color: var(--gold); }
   tbody tr.qualified td.team-col { color: var(--text); }
   tbody tr.cutline td { border-bottom: 2px solid var(--gold); }
-  tbody tr.cutline td.team-col { position: relative; }
 
   /* Scorers */
   .scorers-card {
@@ -184,6 +191,35 @@
   }
   .scorer-row.lead .goals { color: var(--gold); }
 
+  /* Era chart */
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px 20px 12px; margin-bottom: 48px;
+  }
+  .chart-card svg { width: 100%; height: auto; display: block; }
+  .chart-card .bar { fill: var(--border); cursor: pointer; transition: fill 0.15s; }
+  .chart-card .bar:hover { fill: var(--text-dim); }
+  .chart-card .bar.active { fill: var(--gold); }
+  .chart-card .bar-label { font-size: 9px; fill: var(--text-faint); text-anchor: middle; }
+  .chart-card .bar-value { font-size: 9px; fill: var(--text-dim); text-anchor: middle; font-weight: 600; }
+  .chart-hint { font-size: 12px; color: var(--text-faint); margin-top: 8px; text-align: center; }
+
+  /* Analytics tables */
+  .table-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; margin-bottom: 48px;
+  }
+  .table-card thead th { padding: 14px 8px 8px; }
+  .table-card tbody td { padding: 0 8px; }
+  .table-card td.left, .table-card th.left { text-align: left; padding-left: 16px; }
+  .table-card .gold { color: var(--gold); font-weight: 700; }
+  .two-col {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    align-items: start;
+  }
+  .two-col .table-card { margin-bottom: 0; }
+  .analytics-gap { margin-bottom: 48px; }
+
   footer {
     padding-bottom: 24px !important;
     color: var(--text-faint); font-size: 12px;
@@ -192,10 +228,17 @@
   footer a:hover { color: var(--gold); }
 
   .loading { padding: 80px 0; text-align: center; color: var(--text-dim); }
+  .notice {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 32px 20px; text-align: center;
+    color: var(--text-dim); font-size: 13px; margin-bottom: 48px;
+  }
 
   @media (max-width: 720px) {
     .stats { grid-template-columns: repeat(2, 1fr); }
     .groups { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .brand .sub { display: none; }
   }
   @media (min-width: 721px) and (max-width: 1100px) {
     .groups { grid-template-columns: repeat(2, 1fr); }
@@ -209,11 +252,12 @@
 <header>
   <div class="wrap header-inner">
     <div class="brand">
-      <span class="mark">World Cup 20<b>26</b></span>
-      <span class="sub">Group Standings</span>
+      <span class="mark">World Cup <b>Analytics</b></span>
+      <span class="sub">1930 – 2026</span>
     </div>
     <div class="header-right">
       <span class="updated" id="updated"></span>
+      <select class="year-select" id="yearSelect" aria-label="Select tournament"></select>
       <button class="toggle" id="themeToggle" aria-label="Toggle light and dark theme">◐</button>
     </div>
   </div>
@@ -223,24 +267,47 @@
   <section class="stats" id="stats"></section>
 
   <div class="section-head">
-    <h2>Standings</h2>
+    <h2 id="standingsTitle">Standings</h2>
     <div class="exports">
       <button class="btn" data-export="standings" data-fmt="json">JSON</button>
       <button class="btn" data-export="standings" data-fmt="csv">CSV</button>
     </div>
   </div>
   <section class="groups" id="groups">
-    <div class="loading">Loading standings…</div>
+    <div class="loading">Loading…</div>
   </section>
 
   <div class="section-head">
-    <h2>Top Scorers</h2>
+    <h2 id="scorersTitle">Top Scorers</h2>
     <div class="exports">
       <button class="btn" data-export="scorers" data-fmt="json">JSON</button>
       <button class="btn" data-export="scorers" data-fmt="csv">CSV</button>
     </div>
   </div>
-  <section class="scorers-card" id="scorers"></section>
+  <section id="scorers"></section>
+
+  <div class="section-head">
+    <h2>Goals per Match, 1930 – 2026</h2>
+    <span class="note">click a bar to switch tournament</span>
+  </div>
+  <section class="chart-card" id="trendChart"></section>
+
+  <div class="two-col analytics-gap">
+    <div>
+      <div class="section-head">
+        <h2>Biggest Upsets</h2>
+        <span class="note">knockout wins by the weaker group-stage side</span>
+      </div>
+      <div class="table-card" id="upsets"></div>
+    </div>
+    <div>
+      <div class="section-head">
+        <h2>All-Time Records</h2>
+        <span class="note">every tournament, every match</span>
+      </div>
+      <div class="table-card" id="records"></div>
+    </div>
+  </div>
 </main>
 
 <footer class="wrap">
@@ -248,41 +315,77 @@
 </footer>
 
 <script>
-const state = { standings: [], scorers: [] };
+const state = { year: 2026, tournaments: [], trends: [], standings: [], scorers: [] };
 
-async function load() {
+async function getJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(String(r.status));
+  return r.json();
+}
+
+async function init() {
   try {
-    const [s, sc] = await Promise.all([
-      fetch('output/standings.json').then(r => r.json()),
-      fetch('output/scorers.json').then(r => r.json()),
+    const [tournaments, trends, upsets, records] = await Promise.all([
+      getJSON('/api/tournaments'),
+      getJSON('/api/analytics/scoring-trends'),
+      getJSON('/api/analytics/upsets?limit=10'),
+      getJSON('/api/analytics/team-records?limit=12'),
     ]);
-    state.standings = s;
-    state.scorers = sc;
-    renderStats();
-    renderGroups();
-    renderScorers();
+    state.tournaments = tournaments;
+    state.trends = trends;
+
+    const fromUrl = parseInt(new URLSearchParams(location.search).get('year'), 10);
+    if (tournaments.some(t => t.year === fromUrl)) state.year = fromUrl;
+
+    renderYearSelect();
+    renderTrendChart();
+    renderUpsets(upsets);
+    renderRecords(records);
     document.getElementById('updated').textContent =
       'Updated ' + new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+    await loadTournament(state.year);
   } catch (e) {
     document.getElementById('groups').innerHTML =
-      '<div class="loading">Could not load data. Run the pipeline first to generate the output files, then serve this folder.</div>';
+      '<div class="loading">Could not load data. Run the pipeline, then start the API: uvicorn api:app</div>';
   }
 }
 
-function renderStats() {
-  const s = state.standings;
-  // Each match's goals counted once: sum goals_for across all teams.
-  const totalGoals = s.reduce((a, r) => a + r.goals_for, 0);
-  // Each match counts for 2 teams, so sum of "played" / 2.
-  const played = Math.round(s.reduce((a, r) => a + r.played, 0) / 2);
-  const totalMatches = 72;
-  const gpm = played ? (totalGoals / played).toFixed(2) : '0';
+async function loadTournament(year) {
+  state.year = year;
+  document.getElementById('yearSelect').value = year;
+  history.replaceState(null, '', year === 2026 ? location.pathname : `?year=${year}`);
+  document.getElementById('standingsTitle').textContent = `Standings · ${year}`;
+  document.getElementById('scorersTitle').textContent = `Top Scorers · ${year}`;
+  renderStats();
+  renderTrendChart();
 
+  const [standings, scorers] = await Promise.all([
+    getJSON(`/api/tournaments/${year}/standings`).catch(() => null),
+    getJSON(`/api/tournaments/${year}/scorers`).catch(() => null),
+  ]);
+  state.standings = standings || [];
+  state.scorers = scorers || [];
+  renderGroups();
+  renderScorers();
+}
+
+function renderYearSelect() {
+  const sel = document.getElementById('yearSelect');
+  sel.innerHTML = [...state.tournaments].reverse().map(t =>
+    `<option value="${t.year}">${t.year}</option>`).join('');
+  sel.value = state.year;
+  sel.addEventListener('change', () => loadTournament(parseInt(sel.value, 10)));
+}
+
+function renderStats() {
+  const t = state.trends.find(x => x.year === state.year);
+  if (!t) return;
   const cards = [
-    { label: 'Total Goals', num: totalGoals, unit: 'across the group stage' },
-    { label: 'Matches Played', num: played, unit: `of ${totalMatches} group games` },
-    { label: 'Remaining', num: totalMatches - played, unit: 'group games left' },
-    { label: 'Goals / Match', num: gpm, unit: 'group-stage average' },
+    { label: 'Matches', num: t.matches, unit: 'group stage + knockout' },
+    { label: 'Goals', num: t.total_goals, unit: 'across the tournament' },
+    { label: 'Goals / Match', num: t.goals_per_match.toFixed(2), unit: 'tournament average' },
+    { label: 'Draw Rate', num: Math.round(t.draw_rate * 100) + '%', unit: `${t.draws} matches drawn` },
   ];
   document.getElementById('stats').innerHTML = cards.map(c => `
     <div class="stat">
@@ -293,14 +396,21 @@ function renderStats() {
 }
 
 function renderGroups() {
+  const el = document.getElementById('groups');
+  if (!state.standings.length) {
+    el.innerHTML = `<div class="notice" style="grid-column:1/-1">
+      No group stage in ${state.year} — this tournament was a straight knockout.</div>`;
+    return;
+  }
   const byGroup = {};
   state.standings.forEach(r => (byGroup[r.group] ??= []).push(r));
+  const showCutline = state.year === 2026;  // top-2 rule of the current format
 
-  document.getElementById('groups').innerHTML = Object.keys(byGroup).sort().map(g => {
+  el.innerHTML = Object.keys(byGroup).sort().map(g => {
     const rows = byGroup[g].sort((a, b) => a.position - b.position);
     const body = rows.map(r => {
-      const qualified = r.position <= 2 ? 'qualified' : '';
-      const cutline = r.position === 2 ? 'cutline' : '';
+      const qualified = showCutline && r.position <= 2 ? 'qualified' : '';
+      const cutline = showCutline && r.position === 2 ? 'cutline' : '';
       const gd = (r.goal_difference > 0 ? '+' : '') + r.goal_difference;
       return `<tr class="${qualified} ${cutline}">
         <td class="team-col"><span class="pos">${r.position}.</span>${r.team}</td>
@@ -309,7 +419,8 @@ function renderGroups() {
       </tr>`;
     }).join('');
     return `<div class="group-card">
-      <div class="gc-head"><span class="name">${g}</span><span class="tag">Top 2 advance</span></div>
+      <div class="gc-head"><span class="name">${g}</span>
+        <span class="tag">${showCutline ? 'Top 2 advance' : state.year}</span></div>
       <table>
         <thead><tr>
           <th class="team-col">Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
@@ -321,12 +432,76 @@ function renderGroups() {
 }
 
 function renderScorers() {
-  document.getElementById('scorers').innerHTML = state.scorers.map((r, i) => `
+  const el = document.getElementById('scorers');
+  if (!state.scorers.length) {
+    el.innerHTML = `<div class="notice">
+      No scorer data for ${state.year} — the source has goal events only for 1930–1950 and 2014–2026.</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="scorers-card">` + state.scorers.map((r, i) => `
     <div class="scorer-row ${i === 0 ? 'lead' : ''}">
       <div class="rank">${r.rank}.</div>
       <div class="who"><div class="nm">${r.player}</div><div class="tm">${r.team}</div></div>
       <div class="goals">${r.goals}</div>
-    </div>`).join('');
+    </div>`).join('') + `</div>`;
+}
+
+function renderTrendChart() {
+  const trends = state.trends;
+  if (!trends.length) return;
+  const W = 1200, H = 260, pad = 10, labelH = 34;
+  const bw = (W - pad * 2) / trends.length;
+  const max = Math.max(...trends.map(t => t.goals_per_match));
+  const bars = trends.map((t, i) => {
+    const h = (t.goals_per_match / max) * (H - labelH - 30);
+    const x = pad + i * bw;
+    const y = H - labelH - h;
+    const active = t.year === state.year ? 'active' : '';
+    return `
+      <g onclick="loadTournament(${t.year})" style="cursor:pointer">
+        <rect class="bar ${active}" x="${(x + 3).toFixed(1)}" y="${y.toFixed(1)}"
+              width="${(bw - 6).toFixed(1)}" height="${h.toFixed(1)}" rx="3">
+          <title>${t.year}: ${t.goals_per_match} goals/match (${t.total_goals} goals, ${t.matches} matches)</title>
+        </rect>
+        <text class="bar-value" x="${(x + bw / 2).toFixed(1)}" y="${(y - 6).toFixed(1)}">${t.goals_per_match.toFixed(1)}</text>
+        <text class="bar-label" x="${(x + bw / 2).toFixed(1)}" y="${H - 14}"
+              transform="rotate(-45 ${(x + bw / 2).toFixed(1)} ${H - 14})">${t.year}</text>
+      </g>`;
+  }).join('');
+  document.getElementById('trendChart').innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Goals per match by tournament">${bars}</svg>`;
+}
+
+function renderUpsets(upsets) {
+  document.getElementById('upsets').innerHTML = `<table>
+    <thead><tr>
+      <th class="left">Year</th><th class="left">Round</th><th class="left">Winner</th>
+      <th class="left">Loser</th><th>Score</th><th>Gap</th>
+    </tr></thead>
+    <tbody>${upsets.map(u => `<tr>
+      <td class="left">${u.year}</td>
+      <td class="left">${u.round}</td>
+      <td class="left" style="color:var(--text);font-weight:600">${u.winner}</td>
+      <td class="left">${u.loser}</td>
+      <td>${u.score}${u.decided_by === 'penalties' ? ' (p)' : u.decided_by === 'extra time' ? ' (aet)' : ''}</td>
+      <td class="gold">+${u.points_gap}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function renderRecords(records) {
+  document.getElementById('records').innerHTML = `<table>
+    <thead><tr>
+      <th class="left">Team</th><th>WCs</th><th>P</th><th>W</th><th>D</th><th>L</th><th>Win %</th>
+    </tr></thead>
+    <tbody>${records.map((r, i) => `<tr>
+      <td class="left" style="color:var(--text);font-weight:600">${r.team}</td>
+      <td>${r.tournaments}</td><td>${r.played}</td>
+      <td class="${i === 0 ? 'gold' : ''}">${r.won}</td>
+      <td>${r.drawn}</td><td>${r.lost}</td>
+      <td>${Math.round(r.win_rate * 100)}%</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
 }
 
 // Client-side export: build the file in the browser from loaded data.
@@ -352,24 +527,24 @@ document.querySelectorAll('[data-export]').forEach(btn => {
     const fmt = btn.dataset.fmt;
     const data = which === 'standings' ? state.standings : state.scorers;
     if (fmt === 'json') {
-      download(`${which}.json`, JSON.stringify(data, null, 2), 'application/json');
+      download(`${which}_${state.year}.json`, JSON.stringify(data, null, 2), 'application/json');
     } else {
-      download(`${which}.csv`, toCSV(data), 'text/csv');
+      download(`${which}_${state.year}.csv`, toCSV(data), 'text/csv');
     }
   });
 });
 
 // Theme toggle with persistence
 const root = document.documentElement;
-const saved = localStorage.getItem('wc26-theme');
+const saved = localStorage.getItem('wc-theme') || localStorage.getItem('wc26-theme');
 if (saved) root.setAttribute('data-theme', saved);
 document.getElementById('themeToggle').addEventListener('click', () => {
   const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   root.setAttribute('data-theme', next);
-  localStorage.setItem('wc26-theme', next);
+  localStorage.setItem('wc-theme', next);
 });
 
-load();
+init();
 </script>
 </body>
 </html>
