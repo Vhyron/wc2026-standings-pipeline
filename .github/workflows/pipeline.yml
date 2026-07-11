@@ -2,7 +2,7 @@ name: worldcup-workflow
 
 on:
   schedule:
-    - cron: "0 6 * * *"   # daily 06:00 UTC, after openfootball's ~daily update
+    - cron: "0 1 * * *"   # daily 01:00 UTC = 09:00 Philippine time
   workflow_dispatch: {}    # manual runs from the Actions tab
 
 jobs:

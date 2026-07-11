@@ -113,7 +113,7 @@ The dashboard has a light and dark theme toggle and JSON/CSV export buttons (bui
 
 ## Scheduling
 
-`.github/workflows/pipeline.yml` runs the pipeline daily at 06:00 UTC (after openfootball's roughly daily update) and on demand from the Actions tab.
+`.github/workflows/pipeline.yml` runs the pipeline daily at 01:00 UTC (09:00 Philippine time) and on demand from the Actions tab.
 
 To enable the BigQuery publish in CI, configure the repo once:
 
