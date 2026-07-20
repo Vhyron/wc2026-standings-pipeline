@@ -1,0 +1,15 @@
+[Unit]
+Description=World Cup Analytics API (FastAPI + dashboard)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/worldcup-analytics-pipeline
+ExecStart=/home/pi/worldcup-analytics-pipeline/venv/bin/uvicorn api:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
