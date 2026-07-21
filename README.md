@@ -1,5 +1,7 @@
 # World Cup Analytics Pipeline
 
+**Live dashboard: [worldcup-analytics.vhyron.space](https://worldcup-analytics.vhyron.space)**
+
 An ELT analytics pipeline over every FIFA World Cup (1930–2026). It ingests full tournament history into DuckDB, models it with dbt into tested staging/intermediate/mart layers, and serves standings, scorers, and historical analytics through a FastAPI backend, a web dashboard, and BigQuery.
 
 ## What it does
@@ -125,7 +127,7 @@ Without those, CI still runs — it just skips the cloud publish.
 
 ## Self-hosted deployment
 
-The API + dashboard run on a Raspberry Pi Zero 2 W behind a Cloudflare Tunnel: a systemd timer runs the pipeline nightly, a systemd service keeps uvicorn up, and the tunnel exposes it over HTTPS with no open router ports. GitHub Actions stays the independent owner of the BigQuery path, so either half can fail without taking down the other. Full walkthrough in [deploy/PI_SETUP.md](deploy/PI_SETUP.md).
+The API + dashboard run on a Raspberry Pi Zero 2 W behind a Cloudflare Tunnel at [worldcup-analytics.vhyron.space](https://worldcup-analytics.vhyron.space): a systemd timer runs the pipeline nightly, a systemd service keeps uvicorn up, and the tunnel exposes it over HTTPS with no open router ports. GitHub Actions stays the independent owner of the BigQuery path, so either half can fail without taking down the other. Full walkthrough in [deploy/PI_SETUP.md](deploy/PI_SETUP.md).
 
 For local development, cron can run the same pipeline daily:
 
