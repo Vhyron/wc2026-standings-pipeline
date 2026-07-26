@@ -11,3 +11,4 @@ knowable until after it exists, and backfilling one would mean rewriting history
 | # | Commit | Area | Files |
 |---|--------|------|-------|
 | [001](001-adopt-uv-toolchain.md) | `build: replace requirements.txt with pyproject.toml and uv.lock` | dependencies / toolchain | `pyproject.toml`, `.python-version`, `uv.lock`, `requirements.txt` (deleted) |
+| [002](002-ci-uv-sync-locked.md) | `ci: install dependencies with uv sync --locked` | CI | `.github/workflows/pipeline.yml` |

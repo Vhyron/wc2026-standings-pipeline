@@ -11,12 +11,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.12"
+          enable-cache: true
 
+      # --locked fails the run if uv.lock is stale, instead of silently
+      # re-resolving; the interpreter comes from .python-version.
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --locked
 
       - name: Write GCP credentials
         if: ${{ vars.WC_BQ_PROJECT != '' }}
@@ -29,4 +31,4 @@ jobs:
           WC_BQ_PROJECT: ${{ vars.WC_BQ_PROJECT }}
           WC_BQ_DATASET: ${{ vars.WC_BQ_DATASET }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-key.json
-        run: python pipeline.py
+        run: uv run python pipeline.py
