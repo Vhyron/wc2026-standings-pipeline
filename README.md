@@ -77,7 +77,11 @@ api.py             FastAPI backend serving marts from DuckDB (also hosts the das
 dbt/               dbt project: staging -> intermediate -> marts models + tests
 deploy/            systemd units + walkthrough for self-hosting on a Raspberry Pi
 .github/workflows/ daily pipeline run on GitHub Actions (+ optional BigQuery publish)
+git-context/       the reasoning behind each commit, one file per commit
 dashboard.html     the web dashboard (reads the API)
+pyproject.toml     project metadata + dependencies (uv-managed)
+uv.lock            the resolved dependency set, committed so every environment matches
+.python-version    the interpreter uv provisions (3.14)
 setup_cron.sh      prints the cron line + setup steps for this machine
 worldcup.duckdb    DuckDB database (generated, gitignored)
 pipeline.log       run log (generated, gitignored)
@@ -86,16 +90,16 @@ pipeline.log       run log (generated, gitignored)
 ## Running the pipeline
 
 ```bash
-pip install -r requirements.txt   # inside a venv if your system python is externally managed
-python3 pipeline.py
+uv sync              # creates .venv from uv.lock, downloading Python 3.14 if needed
+uv run pipeline.py
 ```
 
-Dependencies: DuckDB (local analytical store), dbt-duckdb (transform layer), FastAPI + uvicorn (API), google-cloud-bigquery (optional cloud publish). Paths are anchored to the script's own location, so it behaves the same run by hand, by cron, or in CI.
+Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`: DuckDB (local analytical store), dbt-duckdb (transform layer), FastAPI + uvicorn (API), google-cloud-bigquery (optional cloud publish). The lockfile is what makes this machine, CI, and the Pi install the same versions. Paths are anchored to the script's own location, so it behaves the same run by hand, by cron, or in CI.
 
 ## Running the API + dashboard
 
 ```bash
-uvicorn api:app
+uv run uvicorn api:app
 ```
 
 Then open `http://localhost:8000` — the API serves the dashboard at the root. Run the pipeline first so the database has data. Interactive API docs at `http://localhost:8000/docs`.

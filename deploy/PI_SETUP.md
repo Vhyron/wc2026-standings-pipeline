@@ -8,7 +8,11 @@ This Pi is dedicated solely to this project — no Pi-hole/Unbound running along
 
 ```bash
 sudo apt update && sudo apt full-upgrade -y
-sudo apt install -y git python3-venv
+sudo apt install -y git
+
+# uv manages both the dependencies and the Python interpreter, so there's no
+# need for the system python to be a supported version.
+curl -LsSf https://astral.sh/uv/install.sh | sh   # lands at ~/.local/bin/uv
 
 # dbt needs more headroom than the default swap on a 512MB board.
 # (Plain swapfile — works on any Raspberry Pi OS; Trixie+ has no dphys-swapfile.)
@@ -27,15 +31,17 @@ Checkpoint: free -h shows Swap: 1.0Gi.
 cd ~
 git clone https://github.com/Vhyron/worldcup-analytics-pipeline.git
 cd worldcup-analytics-pipeline
-python3 -m venv venv
-venv/bin/pip install -r requirements.txt   # ARM wheels come from piwheels; takes a while
+uv sync   # downloads Python 3.14 + arm64 wheels into .venv; takes a while on a Zero 2 W
 
 # First pipeline run by hand, so the DB exists and you see it work.
-venv/bin/python pipeline.py
+uv run pipeline.py
 ```
 same log lines — load: 23 tournaments, 1069 matches, transform: dbt build passed, Pipeline finished.
 
-Checkpoint: venv/bin/dbt --version prints versions without errors.
+Checkpoint: .venv/bin/dbt --version prints versions without errors.
+
+Everything installs from prebuilt aarch64 wheels — duckdb, grpcio and pydantic-core all ship
+cp314 manylinux aarch64 builds — so nothing compiles from source on the Pi.
 
 Do NOT set `WC_BQ_PROJECT`/`WC_BQ_DATASET` here — BigQuery publishing belongs to GitHub Actions, so the warehouse keeps refreshing even if the Pi is down.
 
@@ -69,4 +75,7 @@ Prereq: a domain added to a (free) Cloudflare account.
 - The timer fires at 09:00 in the Pi's local timezone — confirm with `timedatectl` (set it with `sudo timedatectl set-timezone Asia/Manila`).
 - `Nice=10` on the pipeline service keeps the daily dbt build from hogging CPU over the API.
 - `Persistent=true` on the timer means a Pi that was off at 09:00 runs the pipeline at next boot instead of skipping the day.
-- Update the deployment after pushing changes: `cd ~/worldcup-analytics-pipeline && git pull && venv/bin/pip install -r requirements.txt && sudo systemctl restart worldcup-api`
+- Update the deployment after pushing changes: `cd ~/worldcup-analytics-pipeline && git pull && uv sync && sudo systemctl restart worldcup-api`
+- The systemd units call `.venv/bin/...` directly rather than `uv run`, so nothing resolves
+  dependencies or touches the network while a service is starting. `uv sync` at deploy time is
+  what keeps that venv current — don't skip it after a `git pull`.

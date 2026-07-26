@@ -14,3 +14,4 @@ knowable until after it exists, and backfilling one would mean rewriting history
 | [002](002-ci-uv-sync-locked.md) | `ci: install dependencies with uv sync --locked` | CI | `.github/workflows/pipeline.yml` |
 | [003](003-local-scripts-through-uv.md) | `build: run local scripts through uv` | ops / developer experience | `run.sh`, `setup_cron.sh` |
 | [004](004-systemd-uv-venv.md) | `deploy: point systemd units at the uv-managed .venv` | deployment (Raspberry Pi) | `deploy/worldcup-api.service`, `deploy/worldcup-pipeline.service` |
+| [005](005-docs-uv-workflow.md) | `docs: document the uv workflow` | documentation | `README.md`, `deploy/PI_SETUP.md` |
