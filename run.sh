@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-PYTHON="${PYTHON:-venv/bin/python}"
-
-"$PYTHON" pipeline.py
-exec "$PYTHON" -m uvicorn api:app "$@"
+# uv syncs .venv from uv.lock before each command, so a fresh clone works
+# with no setup step.
+uv run pipeline.py
+exec uv run uvicorn api:app "$@"
