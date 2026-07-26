@@ -1,0 +1,22 @@
+[project]
+name = "worldcup-analytics-pipeline"
+version = "1.0.0"
+description = "ELT analytics pipeline over every FIFA World Cup (1930-2026)."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14"
+dependencies = [
+    "duckdb>=1.5",
+    "dbt-core>=1.11",
+    "dbt-duckdb>=1.9",
+    # Only exercised when WC_BQ_PROJECT/WC_BQ_DATASET are set (cloud publish).
+    "google-cloud-bigquery>=3.25",
+    # API layer (api.py); not needed by pipeline runs.
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
+
+[tool.uv]
+# Top-level scripts (pipeline.py, api.py), not an importable package:
+# uv installs the dependencies and skips building this project itself.
+package = false
